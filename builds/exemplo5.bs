@@ -1,0 +1,16 @@
+POWER_ON;
+
+CPU !monitorar_aquecimento(VOLTAGE $temp_atual, SLOT $fans_ativos) {
+    RUNCIRCUIT ($temp_atual > 90 AND $fans_ativos < 2) {
+        MONITOR("Risco critico de queima (Thermal Throttling)!");
+        MONITOR("Forcando o encerramento do sistema...");
+    }
+    SHORTCIRCUIT {
+        MONITOR("Temperaturas dentro da margem de seguranca.");
+    }
+}
+
+!monitorar_aquecimento(95.5, 1);
+!monitorar_aquecimento(75.0, 2);
+
+POWER_OFF;

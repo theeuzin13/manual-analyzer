@@ -1,0 +1,13 @@
+POWER_ON;
+
+CPU !calcular_memoria() {
+    SLOT $pente_um = 8;
+    SLOT $pente_dois = 8;
+    
+    SLOT $total_ram = $pente_um + $pente_dois;
+    MONITOR("Memoria Total Instalada: ", $total_ram, " GB");
+}
+
+!calcular_memoria();
+
+POWER_OFF;

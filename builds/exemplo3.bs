@@ -1,0 +1,19 @@
+POWER_ON;
+
+CPU !verificar_fonte(VOLTAGE $watts_fonte) {
+    LED $status_energia = GREENSCREEN;
+    RUNCIRCUIT ($watts_fonte >= 600) {
+        MONITOR("Energia suficiente. Pode iniciar o boot!");
+    }
+    SHORTCIRCUIT {
+        MONITOR("Erro: Falta energia para alimentar a placa!");
+        $status_energia = BLUESCREEN;
+    }
+    EJECT $status_energia;
+}
+
+LED $result;
+$result = !verificar_fonte(650);
+MONITOR("Status retornado: ", $result);
+
+POWER_OFF;

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BuildScript — Analisador Léxico Manual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-primary:   #0d1117;
+      --bg-secondary: #161b22;
+      --bg-glass:     rgba(22, 27, 34, 0.75);
+      --accent:       #f78166;         /* tom laranja/vermelho — diferente da versão automática */
+      --accent-hover: #e05b42;
+      --text-main:    #e6edf3;
+      --text-muted:   #7d8590;
+      --border:       rgba(255,255,255,0.07);
+      --success:      #3fb950;
+      --error:        #f85149;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image:
+        radial-gradient(at 0% 0%,   rgba(247,129,102,.08) 0, transparent 55%),
+        radial-gradient(at 100% 100%, rgba(63,185,80,.04) 0, transparent 50%);
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: .875rem 2rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: .625rem;
+      font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em;
+    }
+    .logo i { color: var(--accent); }
+
+    .badge {
+      font-size: .7rem; font-weight: 600;
+      background: rgba(247,129,102,.15);
+      color: var(--accent);
+      border: 1px solid rgba(247,129,102,.3);
+      border-radius: 999px;
+      padding: .2rem .65rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    /* ── Main Grid ───────────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+
+    /* ── Panel ───────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 24px -8px rgba(0,0,0,.6);
+    }
+
+    .panel-header {
+      background: rgba(10,14,20,.35);
+      border-bottom: 1px solid var(--border);
+      padding: .6rem 1.1rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .panel-title {
+      font-size: .78rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .06em;
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .panel-title i { color: var(--accent); }
+
+    /* ── Editor ──────────────────────────────────────────────────────── */
+    textarea.editor {
+      flex: 1; min-height: 420px;
+      background: transparent; border: none; outline: none; resize: none;
+      color: #cdd9e5;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .9rem; line-height: 1.65;
+      padding: 1.1rem 1.25rem;
+      tab-size: 4;
+    }
+
+    /* ── Controles ───────────────────────────────────────────────────── */
+    .controls {
+      background: rgba(10,14,20,.35);
+      border-top: 1px solid var(--border);
+      padding: .875rem 1.25rem;
+      display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+    }
+
+    select.example-select {
+      background: rgba(10,14,20,.5);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .55rem .875rem;
+      color: var(--text-main);
+      font-family: inherit; font-size: .875rem;
+      outline: none; cursor: pointer;
+    }
+    select.example-select option { background: var(--bg-secondary); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .45rem;
+      padding: .55rem 1.1rem;
+      border: none; border-radius: 8px;
+      font-family: inherit; font-size: .875rem; font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-run {
+      background: var(--accent); color: #0d1117;
+    }
+    .btn-run:hover  { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-run:active { transform: translateY(0); }
+
+    .btn-clear {
+      background: rgba(255,255,255,.06);
+      color: var(--text-muted); border: 1px solid var(--border);
+    }
+    .btn-clear:hover { background: rgba(255,255,255,.1); color: var(--text-main); }
+
+    /* ── Tabs ────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: rgba(10,14,20,.35);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      padding: .75rem 1.25rem;
+      font-size: .82rem; font-weight: 500; color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      cursor: pointer; display: flex; align-items: center; gap: .4rem;
+      transition: color .15s, background .15s;
+    }
+    .tab:hover { color: var(--text-main); background: rgba(255,255,255,.02); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(255,255,255,.03); }
+
+    .tab-content {
+      flex: 1; padding: 1.1rem; overflow-y: auto;
+      min-height: 420px; max-height: 420px;
+      display: none;
+    }
+    .tab-content.active { display: block; }
+
+    /* ── Token table ─────────────────────────────────────────────────── */
+    .token-line {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .82rem; line-height: 1.7;
+      white-space: pre;
+    }
+    .token-line .coord { color: #7d8590; }
+    .token-line .name  { color: #79c0ff; }
+    .token-line .val   { color: #a5d6ff; }
+
+    /* ── Badges / alerts ─────────────────────────────────────────────── */
+    .alert {
+      border-radius: 9px; padding: .875rem 1.1rem;
+      display: flex; gap: .75rem; align-items: flex-start;
+      font-size: .875rem; line-height: 1.55;
+    }
+    .alert-success { background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.25); color: #aff0b5; }
+    .alert-error   { background: rgba(248,81,73,.1);  border: 1px solid rgba(248,81,73,.25);  color: #ffa198; }
+    .alert i { font-size: 1.1rem; margin-top: .1rem; }
+    .alert-success i { color: var(--success); }
+    .alert-error   i { color: var(--error); }
+
+    .alert code {
+      display: block; margin-top: .5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .82rem; color: #ffa198;
+      white-space: pre-wrap; word-break: break-word;
+    }
+
+    /* ── Info box tabela de tokens ───────────────────────────────────── */
+    .token-table-header {
+      font-size: .78rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: .05em; margin-bottom: .75rem;
+    }
+
+    .placeholder { color: var(--text-muted); font-style: italic; font-size: .875rem; }
+
+    /* ── Scrollbars ──────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      text-align: center; padding: 1.25rem;
+      font-size: .72rem; color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Header ══════════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <i class="fa-solid fa-microchip"></i>
+    BuildScript IDE
+    <span class="badge">Léxico Manual</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:.875rem">
+    <select class="example-select" id="exampleSelect" onchange="loadExample()">
+      <option value="" disabled selected>Selecionar exemplo...</option>
+      <option value="ex1">Exemplo 1 — Cadastro de Peça</option>
+      <option value="ex2">Exemplo 2 — Soma de Memória</option>
+      <option value="ex3">Exemplo 3 — Watts da Fonte</option>
+      <option value="ex4">Exemplo 4 — Teste de Fans</option>
+      <option value="ex5">Exemplo 5 — Aquecimento</option>
+      <option value="custom">— Código personalizado —</option>
+    </select>
+    <button class="btn btn-run" onclick="runLexer()">
+      <i class="fa-solid fa-bolt"></i> Analisar
+    </button>
+  </div>
+</header>
+
+<!-- ══ Main ════════════════════════════════════════════════════════════ -->
+<main>
+
+  <!-- Painel 1: Editor -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <i class="fa-solid fa-code"></i> Código-Fonte BuildScript
+      </div>
+      <button class="btn btn-clear" onclick="clearEditor()">
+        <i class="fa-solid fa-trash-can"></i> Limpar
+      </button>
+    </div>
+    <textarea class="editor" id="editor"
+              placeholder="// Digite ou selecione um exemplo...&#10;POWER_ON;&#10;...&#10;POWER_OFF;"
+              spellcheck="false"></textarea>
+  </div>
+
+  <!-- Painel 2: Resultados -->
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('tabTokens',  this)">
+        <i class="fa-solid fa-list-ul"></i> Tabela de Tokens
+      </div>
+      <div class="tab"        onclick="switchTab('tabStatus',  this)">
+        <i class="fa-solid fa-circle-check"></i> Status / Erros
+      </div>
+    </div>
+
+    <!-- Aba: Tokens -->
+    <div class="tab-content active" id="tabTokens">
+      <div class="token-table-header">Saída do Autômato Manual (Formato Acadêmico)</div>
+      <div id="tokenOutput" class="placeholder">Nenhum token gerado ainda. Clique em "Analisar".</div>
+    </div>
+
+    <!-- Aba: Status -->
+    <div class="tab-content" id="tabStatus">
+      <div id="statusOutput">
+        <div class="alert" style="background:transparent;border:none;color:var(--text-muted)">
+          <i class="fa-solid fa-circle-info" style="color:var(--text-muted)"></i>
+          Nenhuma análise realizada ainda.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Trabalho Prático — Compiladores &nbsp;|&nbsp; Analisador Léxico Manual (DFA sem biblioteca <code>re</code>) &nbsp;&copy; 2026
+</footer>
+
+<!-- ══ JavaScript ══════════════════════════════════════════════════════ -->
+<script>
+  const EXAMPLES = {
+    ex1: `POWER_ON;\n\nCPU !cadastrar_peca() {\n    LABEL $nome_peca;\n    MONITOR("Digite o modelo da placa de video: ");\n    $nome_peca = KEYBOARD();\n    MONITOR("Componente [", $nome_peca, "] reconhecido pelo sistema.");\n}\n\n!cadastrar_peca();\n\nPOWER_OFF;`,
+    ex2: `POWER_ON;\n\nCPU !calcular_memoria() {\n    SLOT $pente_um = 8;\n    SLOT $pente_dois = 8;\n\n    SLOT $total_ram = $pente_um + $pente_dois;\n    MONITOR("Memoria Total Instalada: ", $total_ram, " GB");\n}\n\n!calcular_memoria();\n\nPOWER_OFF;`,
+    ex3: `POWER_ON;\n\nCPU !verificar_fonte(VOLTAGE $watts_fonte) {\n    LED $status_energia = GREENSCREEN;\n    RUNCIRCUIT ($watts_fonte >= 600) {\n        MONITOR("Energia suficiente. Pode iniciar o boot!");\n    }\n    SHORTCIRCUIT {\n        MONITOR("Erro: Falta energia para alimentar a placa!");\n        $status_energia = BLUESCREEN;\n    }\n    EJECT $status_energia;\n}\n\nLED $result;\n$result = !verificar_fonte(650);\nMONITOR("Status retornado: ", $result);\n\nPOWER_OFF;`,
+    ex4: `POWER_ON;\n\nCPU !testar_fans(SLOT $quantidade_fans) {\n    MONITOR("Iniciando teste de resfriamento...");\n    RUNCOOLER (SLOT $i = 1; $i <= $quantidade_fans; $i++) {\n        MONITOR("Ventoinha ", $i, " girando sem ruidos.");\n    } STOPCOOLER;\n    MONITOR("Teste de resfriamento concluido.");\n}\n\n!testar_fans(3);\n\nPOWER_OFF;`,
+    ex5: `POWER_ON;\n\nCPU !monitorar_aquecimento(VOLTAGE $temp_atual, SLOT $fans_ativos) {\n    RUNCIRCUIT ($temp_atual > 90 AND $fans_ativos < 2) {\n        MONITOR("Risco critico de queima (Thermal Throttling)!");\n        MONITOR("Forcando o encerramento do sistema...");\n    }\n    SHORTCIRCUIT {\n        MONITOR("Temperaturas dentro da margem de seguranca.");\n    }\n}\n\n!monitorar_aquecimento(95.5, 1);\n!monitorar_aquecimento(75.0, 2);\n\nPOWER_OFF;`,
+  };
+
+  function loadExample() {
+    const v = document.getElementById('exampleSelect').value;
+    if (EXAMPLES[v]) document.getElementById('editor').value = EXAMPLES[v];
+    else if (v === 'custom') document.getElementById('editor').value = '';
+  }
+
+  function clearEditor() {
+    document.getElementById('editor').value = '';
+    document.getElementById('tokenOutput').innerHTML = '<span class="placeholder">Editor limpo.</span>';
+    document.getElementById('statusOutput').innerHTML = `
+      <div class="alert" style="background:transparent;border:none;color:var(--text-muted)">
+        <i class="fa-solid fa-circle-info" style="color:var(--text-muted)"></i>
+        Nenhuma análise realizada ainda.
+      </div>`;
+    switchTab('tabTokens', document.querySelector('.tab'));
+  }
+
+  function switchTab(id, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(id).classList.add('active');
+  }
+
+  async function runLexer() {
+    const code = document.getElementById('editor').value;
+    if (!code.trim()) { alert('Digite ou selecione um código antes de analisar.'); return; }
+
+    document.getElementById('tokenOutput').innerHTML = '<span class="placeholder">Processando...</span>';
+
+    try {
+      const resp = await fetch('/run_manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+
+      const res = await resp.json();
+
+      // ── Aba de Tokens ────────────────────────────────────────────────
+      if (res.success && res.tokens) {
+        // Coloriza a saída: Linha:XX, Coluna XX em cinza | nome do token em azul | lexema em azul claro
+        const colored = res.tokens
+          .split('\n')
+          .map(line => {
+            // Ex: "Linha: 1 - Coluna 1 - Token:<InicioPrograma, POWER_ON>"
+            return line
+              .replace(/^(Linha: \d+ - Coluna \d+ - Token:)/, '<span class="coord">$1</span>')
+              .replace(/<([^,>]+),/, match => match.replace(/([A-Za-záéíóúçã]+)/, '<span class="name">$1</span>'))
+              .replace(/, ([^>]+)>/, ', <span class="val">$1</span>');
+          })
+          .join('\n');
+        document.getElementById('tokenOutput').innerHTML = `<div class="token-line">${colored}</div>`;
+      } else {
+        document.getElementById('tokenOutput').innerHTML =
+          '<span class="placeholder">Nenhum token gerado (erro léxico detectado).</span>';
+      }
+
+      // ── Aba de Status ────────────────────────────────────────────────
+      const statusDiv = document.getElementById('statusOutput');
+      if (res.success) {
+        const count = res.tokens ? res.tokens.split('\n').filter(l => l.trim()).length : 0;
+        statusDiv.innerHTML = `
+          <div class="alert alert-success">
+            <i class="fa-solid fa-circle-check"></i>
+            <div>
+              <strong>Análise léxica concluída com sucesso!</strong><br>
+              <span style="font-size:.82rem;color:#7d8590;margin-top:.25rem;display:block">
+                O autômato manual reconheceu <strong style="color:#aff0b5">${count} token(s)</strong>
+                sem nenhum erro léxico.
+              </span>
+            </div>
+          </div>`;
+      } else {
+        statusDiv.innerHTML = `
+          <div class="alert alert-error">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+              <strong>Erro Léxico Detectado pelo Autômato:</strong>
+              <code>${res.error}</code>
+            </div>
+          </div>`;
+        switchTab('tabStatus', document.querySelectorAll('.tab')[1]);
+      }
+
+    } catch (e) {
+      document.getElementById('tokenOutput').innerHTML =
+        `<span class="placeholder">Erro de conexão: verifique se o server_manual.py está rodando. (${e.message})</span>`;
+    }
+  }
+</script>
+</body>
+</html>

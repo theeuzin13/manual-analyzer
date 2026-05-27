@@ -1,0 +1,13 @@
+POWER_ON;
+
+CPU !testar_fans(SLOT $quantidade_fans) {
+    MONITOR("Iniciando teste de resfriamento...");
+    RUNCOOLER (SLOT $i = 1; $i <= $quantidade_fans; $i++) {
+        MONITOR("Ventoinha ", $i, " girando sem ruidos.");
+    } STOPCOOLER;
+    MONITOR("Teste de resfriamento concluido.");
+}
+
+!testar_fans(3);
+
+POWER_OFF;

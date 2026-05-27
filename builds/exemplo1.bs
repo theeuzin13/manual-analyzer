@@ -1,0 +1,12 @@
+POWER_ON;
+
+CPU !cadastrar_peca() {
+    LABEL $nome_peca;
+    MONITOR("Digite o modelo da placa de video: ");
+    $nome_peca = KEYBOARD();
+    MONITOR("Componente [", $nome_peca, "] reconhecido pelo sistema.");
+}
+
+!cadastrar_peca();
+
+POWER_OFF;
