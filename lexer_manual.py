@@ -229,6 +229,7 @@ class ManualLexer:
             )
 
         self._check_braces(tokens)
+        self._check_structure(tokens)
 
         tokens.append({'token': 'EOF', 'valor': '', 'line': self.line, 'col': self.col})
         return tokens
@@ -382,6 +383,53 @@ class ManualLexer:
             raise LexerError(
                 f"Erro Léxico [Linha {last_open['line']}, Coluna {last_open['col']}]: "
                 f"Fim de arquivo inesperado — bloco '{{' aberto não foi fechado com '}}'."
+            )
+
+    @staticmethod
+    def _check_structure(tokens: list[dict]):
+        """Valida que o programa começa com POWER_ON; e termina com POWER_OFF;"""
+        # Filtra tokens relevantes (ignora comentários e espaços já ignorados)
+        meaningful = [t for t in tokens if t['token'] != 'EOF']
+
+        if not meaningful:
+            raise LexerError(
+                "Erro Estrutural: O programa está vazio. "
+                "Todo programa BuildScript deve começar com 'POWER_ON;' e terminar com 'POWER_OFF;'."
+            )
+
+        # Verifica POWER_ON no início
+        first = meaningful[0]
+        if not (first['token'] == 'KEYWORD' and first['valor'] == 'POWER_ON'):
+            raise LexerError(
+                f"Erro Estrutural [Linha {first['line']}, Coluna {first['col']}]: "
+                f"O programa deve começar obrigatoriamente com 'POWER_ON;'. "
+                f"Token encontrado: '{first['valor']}'"
+            )
+
+        # Verifica que POWER_ON é seguido de ';'
+        if len(meaningful) < 2 or not (meaningful[1]['token'] == 'SEMICOLON'):
+            raise LexerError(
+                f"Erro Estrutural [Linha {first['line']}, Coluna {first['col']}]: "
+                f"'POWER_ON' deve ser seguido de ponto-e-vírgula ';'."
+            )
+
+        # Verifica POWER_OFF no final
+        last = meaningful[-1]
+        if not (last['token'] == 'SEMICOLON'):
+            raise LexerError(
+                f"Erro Estrutural [Linha {last['line']}, Coluna {last['col']}]: "
+                f"O programa deve terminar com 'POWER_OFF;'. "
+                f"Último token encontrado: '{last['valor']}'"
+            )
+
+        # Encontra o penúltimo token para verificar POWER_OFF
+        second_last = meaningful[-2] if len(meaningful) >= 2 else None
+        if second_last is None or not (second_last['token'] == 'KEYWORD' and second_last['valor'] == 'POWER_OFF'):
+            found = second_last['valor'] if second_last else '(nenhum)'
+            raise LexerError(
+                f"Erro Estrutural [Linha {last['line']}, Coluna {last['col']}]: "
+                f"O programa deve terminar obrigatoriamente com 'POWER_OFF;'. "
+                f"Token encontrado antes do ';' final: '{found}'"
             )
 
     @staticmethod

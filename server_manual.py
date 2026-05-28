@@ -82,7 +82,7 @@ def main():
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(('', PORT), ManualIDEHandler) as httpd:
         print('==================================================')
-        print('  💻 IDE MANUAL DO BUILDSCRIPT INICIADA!')
+        print('  IDE MANUAL DO BUILDSCRIPT INICIADA!')
         print(f'  Acesse: http://localhost:{PORT}')
         print('  Para encerrar: CTRL+C')
         print('==================================================')
