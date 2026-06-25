@@ -380,22 +380,45 @@
           <div class="alert alert-success">
             <i class="fa-solid fa-circle-check"></i>
             <div>
-              <strong>Análise léxica concluída com sucesso!</strong><br>
+              <strong>Análises léxica e sintática concluídas com sucesso!</strong><br>
               <span style="font-size:.82rem;color:#7d8590;margin-top:.25rem;display:block">
                 O autômato manual reconheceu <strong style="color:#aff0b5">${count} token(s)</strong>
-                sem nenhum erro léxico.
+                sem nenhum erro léxico ou sintático.
               </span>
             </div>
           </div>`;
-      } else {
-        statusDiv.innerHTML = `
-          <div class="alert alert-error">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <div>
-              <strong>Erro Léxico Detectado pelo Autômato:</strong>
-              <code>${res.error}</code>
-            </div>
-          </div>`;
+      } else if (res.errors && res.errors.length > 0) {
+        const lexicos = res.errors.filter(e => e.tipo === 'lexico');
+        const sintaticos = res.errors.filter(e => e.tipo === 'sintatico');
+        let html = '';
+        if (lexicos.length > 0) {
+          html += `
+            <div class="alert alert-error">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div>
+                <strong>Erro(s) Léxico(s) (${lexicos.length}):</strong>
+                ${lexicos.map(e => `<code>${e.mensagem}</code>`).join('\n')}
+              </div>
+            </div>`;
+        }
+        if (sintaticos.length > 0) {
+          html += `
+            <div class="alert alert-error">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div>
+                <strong>Erro(s) Sintático(s) (${sintaticos.length}):</strong>
+                ${sintaticos.map(e => `<code>${e.mensagem}</code>`).join('\n')}
+              </div>
+            </div>`;
+        }
+        if (!html) {
+          html = `
+            <div class="alert alert-error">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div><strong>Erro desconhecido.</strong></div>
+            </div>`;
+        }
+        statusDiv.innerHTML = html;
         switchTab('tabStatus', document.querySelectorAll('.tab')[1]);
       }
 

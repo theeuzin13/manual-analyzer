@@ -1,5 +1,6 @@
 import sys
-from lexer_manual import ManualLexer, LexerError
+from lexer_manual import ManualLexer
+from parser_manual import ManualParser
 
 TOKEN_NAMES_PT = {
     'PROG_INIT': 'InicioPrograma',
@@ -43,66 +44,94 @@ def format_tokens(tokens: list[dict]) -> str:
     return "\n".join(formatted)
 
 
+def _exibe_erros(errors: list[dict]):
+    if not errors:
+        print("✅ Nenhum erro encontrado.")
+        return
+    for e in errors:
+        label = e.get('tipo', 'erro').capitalize()
+        print(f"  ❌ {label}: {e['mensagem']}")
+
+
+def _analisa(label: str, code: str) -> list[dict]:
+    print(f"\n[{label}]:")
+    print("----------------------------------------------------------------------")
+    print(code)
+    print("----------------------------------------------------------------------")
+    lexer = ManualLexer(code)
+    tokens = lexer.tokenize()
+    tokens_str = format_tokens(tokens)
+    print(tokens_str if tokens_str else "(sem tokens)")
+    parser = ManualParser(tokens)
+    parser.parse()
+    return lexer.errors + parser.errors
+
+
 def main():
-    print("======================================================================")
-    print("           💻 EXECUTANDO TESTE DO ANALISADOR LÉXICO MANUAL 💻         ")
-    print("======================================================================")
-    
-    
-    code_ok = """POWER_ON;
+    print("=" * 70)
+    print("           EXECUTANDO TESTE DO ANALISADOR LÉXICO MANUAL")
+    print("=" * 70)
+
+    errors = _analisa(
+        "TESTE 1 — Código BuildScript válido",
+        """POWER_ON;
 SLOT $pente_um = 8;
 MONITOR("Memoria instalada: ", $pente_um, " GB");
 POWER_OFF;"""
+    )
+    _exibe_erros(errors)
 
-    print("\n[TESTE 1] Executando código BuildScript válido:")
-    print("----------------------------------------------------------------------")
-    print(code_ok)
-    print("----------------------------------------------------------------------")
-    try:
-        lexer = ManualLexer(code_ok)
-        tokens = lexer.tokenize()
-        print("Tabela de Tokens Gerada com Sucesso:")
-        print(format_tokens(tokens))
-    except LexerError as e:
-        print(f"Erro Léxico Inesperado: {e}")
-
-    
-    code_error = """POWER_ON;
+    errors = _analisa(
+        "TESTE 2 — Erro léxico ($1a mal formado)",
+        """POWER_ON;
 SLOT $1a = 8;
 POWER_OFF;"""
+    )
+    _exibe_erros(errors)
 
-    print("\n[TESTE 2] Executando código com Erro Léxico ($1a - mal formado):")
-    print("----------------------------------------------------------------------")
-    print(code_error)
-    print("----------------------------------------------------------------------")
-    try:
-        lexer = ManualLexer(code_error)
-        tokens = lexer.tokenize()
-        print(format_tokens(tokens))
-    except LexerError as e:
-        print("✅ Erro Léxico Detectado pelo Autômato:")
-        print(f"Mensagem: {e}")
-
-    
-    code_error_symbol = """POWER_ON;
+    errors = _analisa(
+        "TESTE 3 — Símbolo inválido (@)",
+        """POWER_ON;
 SLOT $x = 10 @;
 POWER_OFF;"""
+    )
+    _exibe_erros(errors)
 
-    print("\n[TESTE 3] Executando código com símbolo inválido (@):")
-    print("----------------------------------------------------------------------")
-    print(code_error_symbol)
-    print("----------------------------------------------------------------------")
-    try:
-        lexer = ManualLexer(code_error_symbol)
-        tokens = lexer.tokenize()
-        print(format_tokens(tokens))
-    except LexerError as e:
-        print("✅ Erro Léxico Detectado pelo Autômato:")
-        print(f"Mensagem: {e}")
+    errors = _analisa(
+        "TESTE 4 — Sintaxe válida",
+        """POWER_ON;
+CPU !teste() {
+    SLOT $x = 10;
+    MONITOR("Valor: ", $x);
+}
+!teste();
+POWER_OFF;"""
+    )
+    _exibe_erros(errors)
 
-    print("\n======================================================================")
-    print("                       VERIFICAÇÃO CONCLUÍDA                         ")
-    print("======================================================================")
+    errors = _analisa(
+        "TESTE 5 — Múltiplos erros (léxicos + sintáticos)",
+        """POWER_ON;
+$err1 = ;;
+MONITOR("teste";
+$1invalido = 5;
+POWER_OFF;"""
+    )
+    _exibe_erros(errors)
+
+    errors = _analisa(
+        "TESTE 6 — Erro sintático (faltando STOPCOOLER)",
+        """POWER_ON;
+RUNCOOLER (SLOT $i = 0; $i < 5; $i++) {
+
+}
+POWER_OFF;"""
+    )
+    _exibe_erros(errors)
+
+    print("\n" + "=" * 70)
+    print("                       VERIFICAÇÃO CONCLUÍDA")
+    print("=" * 70)
 
 
 if __name__ == "__main__":

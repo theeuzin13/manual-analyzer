@@ -6,7 +6,8 @@ import io
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from lexer_manual import ManualLexer, LexerError
+from lexer_manual import ManualLexer
+from parser_manual import ManualParser
 
 PORT = 8001
 
@@ -36,21 +37,30 @@ class ManualIDEHandler(http.server.BaseHTTPRequestHandler):
                 return
 
             tokens_fmt = ''
-            error_msg = None
+            errors = []
 
             try:
                 lexer = ManualLexer(code)
                 tokens = lexer.tokenize()
                 tokens_fmt = ManualLexer.format_tokens(tokens)
-            except LexerError as e:
-                error_msg = str(e)
+
+                errors.extend(lexer.errors)
+
+                parser = ManualParser(tokens)
+                parser_errors = parser.parse()
+                errors.extend(parser_errors)
             except Exception as e:
-                error_msg = f'Erro interno: {e}'
+                errors.append({
+                    'tipo': 'interno',
+                    'linha': 0,
+                    'coluna': 0,
+                    'mensagem': f'Erro interno: {e}',
+                })
 
             self._json_response(200, {
-                'success': error_msg is None,
+                'success': len(errors) == 0,
                 'tokens': tokens_fmt,
-                'error': error_msg,
+                'errors': errors,
             })
         else:
             self.send_response(404)
